@@ -10,6 +10,8 @@ from datetime import datetime
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from telethon import TelegramClient, events, Button
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import threading
 from telethon.tl.types import DocumentAttributeFilename
 from telethon.errors import FloodWaitError, RPCError
 
@@ -1112,7 +1114,7 @@ async def bins_country_callback(event):
     total = session["country_counts"].get(country_code, 0)
     try:
         await event.answer(f"Sending {total} cards...")
-        await deliver_country_file(event.sender_id, file_path, total)
+        await deliver_country_file(event.chat_id, file_path, total)
     except Exception as exc:
         await event.answer(friendly_error(exc), alert=True)
 
@@ -1196,8 +1198,35 @@ async def broadcast_handler(event):
     await event.reply(f"✅ Sent: {ok} | Failed: {fail} | Total: {len(users)}")
 
 
+
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path in ('/', '/health'):
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/plain')
+            self.end_headers()
+            self.wfile.write(b'OK')
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    def log_message(self, format, *args):
+        return  # Suppress logging
+
+def start_health_server():
+    port = int(os.environ.get('PORT', '10000'))
+    try:
+        server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
+        print(f"📡 Health check server listening on port {port}")
+        server.serve_forever()
+    except Exception as e:
+        print(f"⚠️ Failed to start health server: {e}")
+
+
 def main():
     os.makedirs(SESSIONS_DIR, exist_ok=True)
+    if 'PORT' in os.environ:
+        threading.Thread(target=start_health_server, daemon=True).start()
     tune = auto_tune_runtime_settings()
     bot.start(bot_token=BOT_TOKEN)
     print("🤖 CC Filter Bot running")
