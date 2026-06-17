@@ -1,0 +1,27 @@
+# Render Blueprint — Dashboard → New → Blueprint → connect GitHub repo
+# Deploying as a Background Worker (type: worker) is ideal since the bot doesn't need to listen on a port.
+services:
+  - type: worker
+    name: ccz-cc-filter-bot
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python ccz.py
+    envVars:
+      - key: API_ID
+        sync: false # Set this value in your Render dashboard
+      - key: API_HASH
+        sync: false # Set this value in your Render dashboard
+      - key: BOT_TOKEN
+        sync: false # Set this value in your Render dashboard
+      - key: MEMORY_MB
+        value: "32768" # Configured for 32GB VPS to maximize processing performance
+      - key: MAX_WORKERS
+        value: "16" # Uses 16 parallel worker processes (adjust if you have more/fewer CPUs)
+      - key: BATCH_SIZE
+        value: "20000" # Highly optimized batch size for processing files up to 100MB
+      - key: DATA_DIR
+        value: /opt/render/project/src/data
+    disk:
+      name: ccz-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 10
